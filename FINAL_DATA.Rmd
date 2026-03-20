@@ -1,0 +1,195 @@
+---
+title: ""
+author: "Group 33"
+date: "November 9, 2024"
+---
+
+```{r setup, include=FALSE}
+# Load necessary libraries
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(tidymodels)
+  theme_set(theme_bw())
+  library(patchwork)
+  library(fs)
+  library(dplyr)
+  library(readr)
+})
+```
+
+# Group member:
+
+-   Anh Phuong Dieu Nguyen (169105483)
+
+-   Minh Tri Tran (169107769)
+
+-   Thi Thao Quyen Tran (169077196)
+
+# Introduction 
+
+## Context
+
+Unnecessary, problematic, and excessive single-use packaging is one of the most offensive and damaging applications of plastic. Despite calls for a “circular economy” approach to plastic packaging, thousands of brands and corporations insist on wrapping their food, household, and personal care products in this polluting and toxic material.
+
+In this report, we will...
+
+## Reasearch Goal 
+
+By the end of this report, we aim to...
+
+# Data Description
+
+## Plastic Pollution Data
+
+.
+
+## Choice of Variables
+
+From this data, we choose the total burned area caused by a fire as our target. To predict this information, we consider several features attributes, including:
+
+-   State in which the fire started, including Arizona, California, Nevada, Oregon.
+
+-   Objective, which indicates the intended goals associated with managing the fire (extinguish or allow to burn).
+
+-   Cause, by human or nature or neither.
+
+-   Shape area, which is the total two-dimensional area enclosed by the fire perimeter polygon.
+
+-   Shape length, which is the total length of the boundary (or perimeter) of the fire polygon.
+
+# Basic Data Cleaning
+
+```{r clean}
+# Load dataset
+cal_fire <- read.csv("D:/WLU/1st Year/Fall/DATA100/FINAL PROJECT/California_Fire_Perimeters_(all).csv")
+
+# Clean and reorder the dataset according to recycling codes
+
+cal_fire <- cal_fire |> 
+  na.omit(cal_fire) |> 
+  mutate(CAUSE = case_when(
+    CAUSE == 1 | CAUSE == 17 ~ "Natural",
+    CAUSE == 14 | is.na(CAUSE) ~ "Unknown",
+    CAUSE != 1 | CAUSE != 14 | CAUSE != 17 ~ "Human")) |> 
+  mutate(
+    ALARM_DATE=ymd_hms(ALARM_DATE),
+    CONT_DATE=ymd_hms(CONT_DATE),
+    GIS_ACRES=format(GIS_ACRES, scientific=FALSE),
+    Shape__Area=format(Shape__Area, scientific=FALSE),
+    Shape__Length=format(Shape__Length, scientific=FALSE),
+  ) |> 
+  rename(BURNED_ACRES=GIS_ACRES,
+         SHAPE_AREA=Shape__Area,
+         SHAPE_LENGTH=Shape__Length) |> 
+  select(!c(COMMENTS,COMPLEX_NAME,IRWINID,FIRE_NUM,COMPLEX_ID))
+cal_fire
+```
+
+# Exploratory Plot/Table
+
+## Exploratory Plot  1
+
+Shape area vs. Shape length
+
+```{r exploratory plot 1}
+exploratory_plot1 <- cal_fire |> 
+  ggplot(aes(x=SHAPE_LENGTH, y=SHAPE_AREA, colour=OBJECTIVE)) +
+  geom_point()
+exploratory_plot1
+
+```
+
+## Exploratory Plot 2
+
+```{r exploratory plot 2}
+
+# Ensure BURNED_ACRES is numeric
+cal_fire <- cal_fire |>
+  mutate(BURNED_ACRES = as.numeric(BURNED_ACRES))
+
+exploratory_plot2 <- cal_fire |>
+  group_by(YEAR_) |>
+  summarise(avg_burned_acres = mean(BURNED_ACRES, na.rm = TRUE)) |>
+  ggplot(aes(x = YEAR_, y = avg_burned_acres)) +
+  geom_col(fill = "orange", alpha = 0.8) +
+  labs(title = "Average Burned Acres by Year",
+       x = "Year",
+       y = "Average Burned Acres") +
+  theme_minimal()
+
+
+exploratory_plot2
+```
+
+# Model Plot 
+
+## Model Plot 1
+```{r}
+ggplot(cal_fire, aes(x = SHAPE_AREA, y = BURNED_ACRES)) +
+  geom_point(alpha = 0.5, color = "blue") +
+  labs(title = "Burned Acres vs Shape Area", x = "Shape Area", y = "Burned Acres")
+
+
+```
+
+## Model Plot 2
+```{r}
+ggplot(cal_fire, aes(x = YEAR_, y = BURNED_ACRES)) +
+  geom_point(alpha = 0.5, color = "BLUE") +
+  labs(title = "Burned Acres vs Year", x = "Year", y = "Burned Acres")
+
+```
+
+# Exploratory Linear Model
+
+## Exploratory Linear Model 1
+```{r}
+exploratory_model_1 <- lm(BURNED_ACRES ~ SHAPE_AREA, data = cal_fire)
+cat("Exploratory Linear Model 1 Summary:\n")
+print(summary(exploratory_model_1))
+```
+
+## Exploratory Linear Model 2
+```{r}
+exploratory_model_2 <- lm(BURNED_ACRES ~ YEAR_, data = cal_fire)
+cat("\nExploratory Linear Model 2 Summary:\n")
+print(summary(exploratory_model_2))
+
+```
+
+# Final Linear Models
+```{r}
+final_model <- lm(BURNED_ACRES ~ SHAPE_AREA + YEAR_, data = cal_fire)
+cat("\nFinal Linear Model Summary:\n")
+print(summary(final_model))
+```
+
+# Advanced Model
+```{r}
+set.seed(123)
+train_index <- createDataPartition(cal_fire$BURNED_ACRES, p = 0.7, list = FALSE)
+train_data <- cal_fire[train_index, ]
+test_data <- cal_fire[-train_index, ]
+
+rf_model <- randomForest(BURNED_ACRES ~ SHAPE_AREA + YEAR_, data = train_data, ntree = 100)
+
+
+rf_predictions <- predict(rf_model, test_data)
+
+
+mse <- mean((rf_predictions - test_data$BURNED_ACRES)^2)
+r_squared <- 1 - sum((rf_predictions - test_data$BURNED_ACRES)^2) / sum((test_data$BURNED_ACRES - mean(test_data$BURNED_ACRES))^2)
+
+```
+
+# Conclusions
+
+# Limitation
+
+# References
+
+## Model Building
+
+
+
+## Predictions and Augment
